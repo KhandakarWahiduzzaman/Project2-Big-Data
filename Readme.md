@@ -27,17 +27,12 @@ Given this information, the project uses PySpark to:
 
 ### Installation Steps
 
-#### 1. Clone the Repository:
-
-```
-git clone <our github link>
-```
-
 #### 2. Install Pyspark:
 
-'''
+```
 pip install pyspark
-'''
+
+```
 
 #### 3. Run the Script:
 
@@ -54,13 +49,76 @@ Usage
 	- Sort Drugs by gene associations.
 	- Summarize drug-disease relationships.
 
+## Problems
+
+– Data: HetIONet (nodes.tsv and edges.tsv)
+– Q1: For each drug, compute the number of genes
+and the number of diseases associated with the
+drug. Output results with top 5 number of genes in a
+descending order.
+– Q2: Compute the number of diseases associated
+with 1, 2, 3, ..., n drugs. Output results with the top
+5 number of diseases in a descending order.
+– Q3: Get the name of drugs that have the top 5
+number of genes. Out put the results.
+
+## code
+
+```
+
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import when, col, count, countDistinct 
+
+# Initialize Spark session
+spark = SparkSession.builder.appName("hetionet").getOrCreate()
+
+# Load data into DataFrames
+nodes_df = spark.read.csv('/mnt/c/Users/nurul/Downloads/hetionet/nodes.tsv', sep='\t', header=False).toDF('id', 'name', 'kind')
+edges_df = spark.read.csv('/mnt/c/Users/nurul/Downloads/hetionet/edges.tsv', sep='\t', header=False).toDF('source', 'metaedge', 'target')
+
+# Classify targets as gene or disease
+edges_df = edges_df.withColumn('type', when(col('target').startswith('G'), 'Gene')
+                                .when(col('target').startswith('Dis'), 'Disease')
+                                .otherwise('other'))
+
+drug_to_disease_df = edges_df.filter((col('source').startswith('Compound::')) & (col('type') == 'Disease'))
+drug_to_gene_df = edges_df.filter((col('source').startswith('Compound::')) & (col('type') == 'Gene'))
+
+# Count genes and diseases per drug
+gene_counts = drug_to_gene_df.groupBy('source').agg(countDistinct('target').alias('GeneCount'))
+disease_counts = drug_to_disease_df.groupBy('source').agg(countDistinct('target').alias('DiseaseCount'))
+
+# Join counts and fill missing values
+combined_counts = gene_counts.join(disease_counts, 'source', 'outer').fillna(0)
+combined_counts = combined_counts.withColumn('GeneCount', col('GeneCount').cast('int'))
+combined_counts = combined_counts.withColumn('DiseaseCount', col('DiseaseCount').cast('int'))
+
+# Get the top 5 drugs by gene count
+top_5_genes = combined_counts.orderBy(col('GeneCount').desc()).limit(5)
+top_5_genes.show()
+
+#question 2
+# Count unique drugs per disease
+disease_drug_counts = drug_to_disease_df.groupBy('target').agg(countDistinct('source').alias('DrugCount'))
+
+# Count number of diseases for each drug association count
+disease_counts_by_drug_association = disease_drug_counts.groupBy('DrugCount').count()
+disease_counts_by_drug_association.orderBy(col('count').desc()).show(5)
+
+#question 3
+# Join with nodes to get drug names
+top_5_with_names = top_5_genes.join(nodes_df, top_5_genes['source'] == nodes_df['id'], 'left').select('name', 'GeneCount')
+top_5_with_names.show()
+
+
+```
 
 ## Results
 
 - Identifies drugs with the most unique gene associations.
 - Shows the distribution of diseases by the number of drugs targeting them.
 
-*Here is an example of output formatting:*
+*Here is the output formatting:*
 
 ```
 +-----------------+---------+------------+
@@ -97,4 +155,5 @@ Usage
 
 ## Contributors
 Khandakar Wahiduzzaman 
+& 
 Kenneth Guillont
