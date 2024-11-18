@@ -27,13 +27,13 @@ Given this information, the project uses PySpark to:
 
 ### Installation Steps
 
-#### 2. Install Pyspark:
+#### 1. Install Pyspark:
 
 ```
 pip install pyspark
 ```
 
-#### 3. Run the Script:
+#### 2. Run the Script:
 
 ```
 python Hetionet-2.py
