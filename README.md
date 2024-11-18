@@ -15,7 +15,7 @@ Given this information, the project uses PySpark to:
 
 - Python: The programming language used for scripting.
 - PySpark: For distributed data processing and analysis.
-- CSV: File containing comma separated values. The data format for nodes and edges.
+- TSV: File containing tab separated values. The data format for nodes and edges.
 
 ## Setup and Installation
 
